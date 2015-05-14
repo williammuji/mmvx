@@ -5,6 +5,8 @@ set(lua_SRCS
   )
 
 add_library(lua ${lua_SRCS})
+target_link_libraries(lua dl)
+set_target_properties(lua PROPERTIES COMPILE_FLAGS "-DLUA_USE_LINUX")
 
 install(TARGETS lua DESTINATION lib)
 

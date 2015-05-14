@@ -13,13 +13,14 @@ set(base_SRCS
   TimeZone.cc
   Thread.cc
   ThreadPool.cc
+  Lua.cc
   )
 
 add_library(muduo_base ${base_SRCS})
-target_link_libraries(muduo_base pthread rt)
+target_link_libraries(muduo_base pthread rt lua)
 
 add_library(muduo_base_cpp11 ${base_SRCS})
-target_link_libraries(muduo_base_cpp11 pthread rt)
+target_link_libraries(muduo_base_cpp11 pthread rt lua)
 set_target_properties(muduo_base_cpp11 PROPERTIES COMPILE_FLAGS "-std=c++0x")
 
 install(TARGETS muduo_base DESTINATION lib)

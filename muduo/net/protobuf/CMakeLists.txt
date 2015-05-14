@@ -1,8 +1,8 @@
-add_library(muduo_protobuf_codec ProtobufCodecLite.cc)
+add_library(muduo_protobuf_codec ProtobufCodecLite.cc ProtobufCodec.cc)
 set_target_properties(muduo_protobuf_codec PROPERTIES COMPILE_FLAGS "-Wno-error=shadow")
 target_link_libraries(muduo_protobuf_codec muduo_net protobuf z)
 
-add_library(muduo_protobuf_codec_cpp11 ProtobufCodecLite.cc)
+add_library(muduo_protobuf_codec_cpp11 ProtobufCodecLite.cc ProtobufCodec.cc)
 set_target_properties(muduo_protobuf_codec_cpp11 PROPERTIES COMPILE_FLAGS "-std=c++0x -Wno-error=shadow")
 target_link_libraries(muduo_protobuf_codec_cpp11 muduo_net_cpp11 protobuf z)
 
