@@ -100,6 +100,7 @@ add_subdirectory(proto)
 add_subdirectory(muduo/base)
 add_subdirectory(muduo/net)
 add_subdirectory(keeperserver)
+add_subdirectory(forwardserver)
 
 if(NOT CMAKE_BUILD_NO_EXAMPLES)
   add_subdirectory(examples)

@@ -9,6 +9,10 @@ Lua::Lua():L_(lua_open())
 {
   assert(L_);
   luaopen_base(L_);
+  luaL_openlibs(L_);
+  luaopen_table(L_);
+  luaopen_string(L_);
+  luaopen_math(L_);
 }
 
 Lua::~Lua()

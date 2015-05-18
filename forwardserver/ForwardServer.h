@@ -1,23 +1,24 @@
-#ifndef KEEPER_SERVER_H
-#define KEEPER_SERVER_H
+#ifndef FORWARD_SERVER_H
+#define FORWARD_SERVER_H
 
-#include <proto/keeperQuery.pb.h>
+#include <proto/query.pb.h>
 
 #include <muduo/net/TcpServer.h>
 #include <muduo/net/protobuf/ProtobufDispatcher.h>
 #include <muduo/net/protobuf/ProtobufCodec.h>
+
 namespace muduo
 {
 class Lua;
 }
 
-typedef boost::shared_ptr<muduo::KeeperQuery> KeeperQueryPtr;
-typedef boost::shared_ptr<muduo::KeeperAnswer> KeeperAnswerPtr;
+typedef boost::shared_ptr<muduo::Query> QueryPtr;
+typedef boost::shared_ptr<muduo::Answer> AnswerPtr;
 
-class KeeperServer : boost::noncopyable
+class ForwardServer : boost::noncopyable
 {
  public:
-  KeeperServer(muduo::net::EventLoop* loop,
+  ForwardServer(muduo::net::EventLoop* loop,
                const muduo::net::InetAddress& listenAddr,
                muduo::Lua* l,
                uint16_t threadCount);
@@ -32,36 +33,17 @@ class KeeperServer : boost::noncopyable
                         muduo::Timestamp);
 
   void onQuery(const muduo::net::TcpConnectionPtr& conn,
-               const KeeperQueryPtr& message,
+               const QueryPtr& message,
                muduo::Timestamp);
 
   void onAnswer(const muduo::net::TcpConnectionPtr& conn,
-                const KeeperAnswerPtr& message,
+                const AnswerPtr& message,
                 muduo::Timestamp);
 
   muduo::net::TcpServer server_;
   muduo::net::ProtobufDispatcher dispatcher_;
   muduo::net::ProtobufCodec codec_;
   muduo::Lua* lua_;
-
-  struct ServerConfig
-  {
-    uint16_t id;
-    uint16_t ttype;
-    std::string ip;
-    uint16_t port;
-    uint16_t threads;
-  };
-  std::vector<ServerConfig> serverConfig_;
-  void loadServerConfig();
-
-  struct ServerStart
-  {
-    uint16_t id;
-    bool start;
-  };
-  std::vector<ServerStart> serverStart_;
-  bool isStarted(uint16_t serverID);
 };
 
 #endif

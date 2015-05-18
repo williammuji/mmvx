@@ -22,7 +22,3 @@ do
 	cond=$(ps -u $(basename $HOME) | grep server | wc -l)
 	echo "server remain:$cond"
 done
-
-bin/keeperserver -d
-sleep 1
-bin/forwardserver -d

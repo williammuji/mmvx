@@ -1,0 +1,12 @@
+package muduo;
+
+message KeeperQuery {
+  required uint32 servertype = 1;
+}
+
+message KeeperAnswer {
+  required uint32 serverid = 1;
+  required string ip = 2;
+  required uint32 port = 3;
+  required uint32 threads = 4;
+}
