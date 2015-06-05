@@ -3,11 +3,10 @@
 #include <muduo/base/Logging.h>
 #include <muduo/base/Lua.h>
 #include <muduo/net/EventLoop.h>
-#include <muduo/base/LogFile.h>
 #include <sstream>
-
+#include <muduo/base/LoggerOutput.h>
 #include <muduo/net/ServerType.h>
-
+#include <muduo/net/Sigaction.h>
 using namespace muduo;
 using namespace muduo::net;
 
@@ -62,12 +61,27 @@ void KeeperServer::loadServerConfig()
 
 bool KeeperServer::isStarted(uint16_t serverID)
 {
-  bool ret = false;
   for (size_t i=0; i<serverStart_.size(); ++i)
   {
-    if (serverStart_[i].id == serverID) ret = serverStart_[i].start;
+    if (serverStart_[i].id == serverID && serverStart_[i].start) 
+    {
+      return true;
+    }
   }
-  return ret;
+  return false;
+}
+
+void KeeperServer::setStarted(uint16_t serverID)
+{
+  for (size_t i=0; i<serverStart_.size(); ++i)
+  {
+    if (serverStart_[i].id == serverID) 
+    {
+      serverStart_[i].start = true;
+      return;
+    }
+  }
+  serverStart_.push_back(ServerStart(serverID, true));
 }
 
 void KeeperServer::start()
@@ -109,6 +123,8 @@ void KeeperServer::onQuery(const muduo::net::TcpConnectionPtr& conn,
       answer.set_port(serverConfig_[i].port);
       answer.set_threads(serverConfig_[i].threads);
       codec_.send(conn, answer);
+
+      setStarted(serverConfig_[i].id);
       return;
     }
   }
@@ -125,21 +141,9 @@ void KeeperServer::onAnswer(const muduo::net::TcpConnectionPtr& conn,
   conn->shutdown();
 }
 
-boost::scoped_ptr<muduo::LogFile> g_logFile;
-void dummyOutput(const char* msg, int len)
-{
-  g_logFile->append(msg, len);
-}
-void dummyFlush()
-{
-  g_logFile->flush();
-}
-
 int main(int argc, char* argv[])
 {
-  g_logFile.reset(new muduo::LogFile("keeperserver", 500*1000*1000, true, 1, 1));
-  muduo::Logger::setOutput(dummyOutput);
-  muduo::Logger::setFlush(dummyFlush);
+  muduo::setLoggerOutputFile("keeperserver", 500*1000*1000, true, 1, 1);
   muduo::Logger::setLogLevel(Logger::TRACE);
   LOG_INFO << "pid = " << getpid() << ", tid = " << CurrentThread::tid();
 
@@ -154,6 +158,7 @@ int main(int argc, char* argv[])
 
   InetAddress listenAddr(ip, port);
   EventLoop loop;
+  muduo::net::setMainEventLoop(&loop);
   KeeperServer server(&loop, listenAddr, &luaMgr, threadCount);
 
   server.start();

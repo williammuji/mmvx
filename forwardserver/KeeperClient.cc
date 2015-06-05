@@ -4,7 +4,8 @@
 #include <boost/bind.hpp>
 #include <muduo/base/Logging.h>
 #include <muduo/base/Lua.h>
-#include <muduo/base/LogFile.h>
+#include <muduo/base/LoggerOutput.h>
+#include <muduo/net/Sigaction.h>
 using namespace muduo;
 using namespace muduo::net;
 
@@ -46,7 +47,7 @@ void KeeperClient::onConnection(const TcpConnectionPtr& conn)
   }
   else
   {
-    loop_->quit();
+    //loop_->quit();
   }
 }
 
@@ -68,21 +69,9 @@ void KeeperClient::onAnswer(const muduo::net::TcpConnectionPtr&,
   server.start();
 }
 
-boost::scoped_ptr<muduo::LogFile> g_logFile;
-void dummyOutput(const char* msg, int len)
-{
-  g_logFile->append(msg, len);
-}
-void dummyFlush()
-{
-  g_logFile->flush();
-}
-
 int main(int argc, char* argv[])
 {
-  g_logFile.reset(new muduo::LogFile("forwardserver", 500*1000*1000, true, 1, 1));
-  muduo::Logger::setOutput(dummyOutput);
-  muduo::Logger::setFlush(dummyFlush);
+  muduo::setLoggerOutputFile("forwardserver", 500*1000*1000, true, 1, 1);
   muduo::Logger::setLogLevel(Logger::TRACE);
   LOG_INFO << "pid = " << getpid() << ", tid = " << CurrentThread::tid();
 
@@ -95,6 +84,7 @@ int main(int argc, char* argv[])
   uint16_t port = keeperConfig.get<uint16_t>("port");
 
   EventLoop loop;
+  muduo::net::setMainEventLoop(&loop);
   InetAddress serverAddr(ip, port);
 
   KeeperClient client(&loop, serverAddr, &luaMgr);

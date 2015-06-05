@@ -99,6 +99,8 @@ add_subdirectory(lua)
 add_subdirectory(proto)
 add_subdirectory(muduo/base)
 add_subdirectory(muduo/net)
+add_subdirectory(hubserver)
+add_subdirectory(logonserver)
 add_subdirectory(keeperserver)
 add_subdirectory(forwardserver)
 

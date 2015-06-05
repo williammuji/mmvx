@@ -23,6 +23,9 @@ do
 	echo "server remain:$cond"
 done
 
+bin/hubserver -d
+sleep 1
+bin/logonserver -d
 bin/keeperserver -d
 sleep 1
 bin/forwardserver -d

@@ -78,7 +78,7 @@ void LogFile::append_unlocked(const char* logline, int len)
       {
         rollFile();
       }
-      else if (now - lastFlush_ >= flushInterval_)
+      //else if (now - lastFlush_ > flushInterval_)
       {
         lastFlush_ = now;
         file_->flush();

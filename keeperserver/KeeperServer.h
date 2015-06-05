@@ -57,11 +57,13 @@ class KeeperServer : boost::noncopyable
 
   struct ServerStart
   {
+    ServerStart(uint16_t i, bool s) : id(i),start(s){}
     uint16_t id;
     bool start;
   };
   std::vector<ServerStart> serverStart_;
   bool isStarted(uint16_t serverID);
+  void setStarted(uint16_t serverID);
 };
 
 #endif
