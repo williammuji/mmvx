@@ -1,0 +1,14 @@
+package muduo;
+
+message HubLogonQueryForwardID {
+  required int64 uid = 1;
+  required string connname = 2;
+  required uint32 keeperserverid = 3;
+}
+
+message HubLogonAnswerForwardID {
+  required int64 uid = 1;
+  required string connname = 2;
+  optional string forwardip = 3;
+  optional uint32 forwardport = 4;
+}

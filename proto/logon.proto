@@ -1,0 +1,15 @@
+package muduo;
+
+message Logon {
+  required int64 uid = 1;
+  required string uname = 2;
+  required string passwd = 3;
+  required uint32 keeperserverid = 4;
+}
+
+message LogonRet {
+  required int64 uid = 1;
+  required string status = 2;
+  optional string forwardip = 3;
+  optional uint32 forwardport = 4;
+}

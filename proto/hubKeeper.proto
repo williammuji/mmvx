@@ -1,0 +1,9 @@
+package muduo;
+
+message HubKeeperUpdateForwardConns {
+  required uint32 keeperserverid = 1;
+  required uint32 forwardserverid = 2;
+  required string forwardip = 3;
+  required uint32 forwardport = 4;
+  required bool add = 5;
+}
