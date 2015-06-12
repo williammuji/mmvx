@@ -11,4 +11,5 @@ message HubLogonAnswerForwardID {
   required string connname = 2;
   optional string forwardip = 3;
   optional uint32 forwardport = 4;
+  optional uint32 session = 5;
 }

@@ -2,6 +2,8 @@
 
 set -x
 
+find . -iname "core*" -exec gdb -c {} \; 
+
 for var in $(ps -u $(basename $HOME) | grep server)
 do
 	pid=$(echo $var | cut -c1-5)
@@ -29,3 +31,10 @@ bin/logonserver -d
 bin/keeperserver -d
 sleep 1
 bin/forwardserver -d
+bin/forwardserver -d
+bin/forwardserver -d
+sleep 1
+bin/logonclient -d
+
+date
+tail -f *.log

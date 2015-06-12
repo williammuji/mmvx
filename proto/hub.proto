@@ -1,0 +1,6 @@
+package muduo;
+
+message HubConnectionData {
+  required int32 servertype = 1;
+  required int32 serverid = 2;
+}

@@ -12,4 +12,10 @@ message LogonRet {
   required string status = 2;
   optional string forwardip = 3;
   optional uint32 forwardport = 4;
+  optional uint32 session = 5;
+}
+
+message LogonForward {
+  required int64 uid = 1;
+  required int32 session = 2;
 }
