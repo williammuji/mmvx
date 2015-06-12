@@ -7,6 +7,7 @@
 #include <muduo/net/ServerType.h>
 #include <muduo/base/LoggerOutput.h>
 #include <muduo/net/Sigaction.h>
+#include <proto/hub.pb.h>
 using namespace muduo;
 using namespace muduo::net;
 
@@ -14,14 +15,17 @@ LogonServer::LogonServer(EventLoop* loop,
                          const InetAddress& listenAddr,
                          const InetAddress& hubAddr,
                          Lua* l,
-                         uint16_t threadCount)
+                         uint16_t threadCount,
+                         uint16_t serverID)
   : server_(loop, listenAddr, "LogonServer"),
     dispatcher_(boost::bind(&LogonServer::onUnknownMessage, this, _1, _2, _3)),
     codec_(boost::bind(&ProtobufDispatcher::onProtobufMessage, &dispatcher_, _1, _2, _3)),
     lua_(l),
+    serverID_(serverID),
     hubClient_(loop, hubAddr, "HubClient"),
     hubDispatcher_(boost::bind(&LogonServer::onHubClientUnknownMessage, this, _1, _2, _3)),
-    hubCodec_(boost::bind(&ProtobufDispatcher::onProtobufMessage, &dispatcher_, _1, _2, _3))
+    hubCodec_(boost::bind(&ProtobufDispatcher::onProtobufMessage, &hubDispatcher_, _1, _2, _3)),
+    mysqlConnectionPool_("test", "127.0.0.1", "noahsark", "noahsark", 4)
 {
   assert(lua_);
 
@@ -34,7 +38,7 @@ LogonServer::LogonServer(EventLoop* loop,
   server_.setThreadNum(threadCount);
 
   hubDispatcher_.registerMessageCallback<muduo::HubLogonAnswerForwardID>(
-      boost::bind(&LogonServer::onHubClientLogonAnswerForwardID, this, _1, _2, _3));
+      boost::bind(&LogonServer::onHubLogonAnswerForwardID, this, _1, _2, _3));
   hubClient_.setConnectionCallback(
       boost::bind(&LogonServer::onHubClientConnection, this, _1));
   hubClient_.setMessageCallback(
@@ -71,13 +75,21 @@ void LogonServer::onHubClientConnection(const TcpConnectionPtr& conn)
       << conn->peerAddress().toIpPort() << " is "
       << (conn->connected() ? "UP" : "DOWN");
 
-  MutexLockGuard lock(hubMutex_);
   if (conn->connected())
   {
-    hubConn_ = conn;
+    {
+      MutexLockGuard lock(hubMutex_);
+      hubConn_ = conn;
+    }
+
+    HubConnectionData data;
+    data.set_servertype(SERVER_TYPE_LOGON);
+    data.set_serverid(serverID_);
+    hubCodec_.send(conn, data);
   }
   else
   {
+    MutexLockGuard lock(hubMutex_);
     hubConn_.reset();
   }
 }
@@ -86,7 +98,7 @@ void LogonServer::onUnknownMessage(const TcpConnectionPtr& conn,
                                    const MessagePtr& message,
                                    Timestamp)
 {
-  LOG_INFO << "onUnknownMessage: " << message->GetTypeName();
+  LOG_ERROR << "onUnknownMessage: " << message->GetTypeName();
   conn->shutdown();
 }
 
@@ -98,6 +110,40 @@ void LogonServer::onHubClientUnknownMessage(const TcpConnectionPtr& conn,
   conn->shutdown();
 }
 
+void LogonServer::queryLogonAccount(uint32_t uid, const StringPiece& passwd, uint32_t keeperServerID, const StringPiece& connName)
+{
+  mysqlpp::ScopedConnection cp(mysqlConnectionPool_, true);
+  if (!cp)
+  {
+    LOG_ERROR << "Failed to get a connection from the pool! uid:" << uid << " connName:" << connName.data();
+    return;
+  }
+
+  std::stringstream queryStr;
+  queryStr << "select * from ACCOUNT where UID=" << uid;
+  mysqlpp::Query query(cp->query(queryStr.str()));
+  mysqlpp::StoreQueryResult res = query.store();
+  if (res.num_rows() == 1 && res[0]["PASSWD"] == passwd.data())
+  {
+    LOG_INFO << "PASSWD:" << res[0]["PASSWD"].data();
+    HubLogonQueryForwardID msg;
+    msg.set_uid(uid);
+    msg.set_connname(connName.data(), connName.size());
+    msg.set_keeperserverid(keeperServerID);
+    sendToHub(msg);
+    LOG_INFO << "LogonServer::queryLogonAccount uid:" << uid << " passwd:" << passwd << " keeperServerID:" << keeperServerID << " connName:" << connName;
+  }
+  else
+  {
+    LogonRet ret;
+    ret.set_uid(uid);
+    ret.set_status("FAILED");
+    sendToClient(connName.data(), ret);
+    shutdownConn(connName.data());
+    LOG_INFO << "LogonServer::queryLogonAccount FAILED uid:" << uid << " passwd:" << passwd << " keeperServerID:" << keeperServerID << " connName:" << connName;
+  }
+}
+
 void LogonServer::onLogon(const muduo::net::TcpConnectionPtr& conn,
                           const LogonPtr& message,
                           muduo::Timestamp)
@@ -105,43 +151,26 @@ void LogonServer::onLogon(const muduo::net::TcpConnectionPtr& conn,
   LOG_INFO << "onLogon:\n" << message->GetTypeName() << message->DebugString();
   LOG_INFO << "peerAddress" << conn->peerAddress().toIpPort();
 
-  //TODO id name passwd verify 
-  if (true)
-  {
-    HubLogonQueryForwardID query;
-    query.set_uid(message->uid());
-    query.set_connname(conn->name().c_str());
-    query.set_keeperserverid(message->keeperserverid());
-    sendToHub(query);
-  }
-  else
-  {
-    LogonRet ret;
-    ret.set_uid(message->uid());
-    ret.set_status("FAILED");
-    codec_.send(conn, ret);
-    conn->shutdown();
-  }
+  mysqlConnectionPool_.put(
+      boost::bind(&LogonServer::queryLogonAccount, this, message->uid(), message->passwd(), message->keeperserverid(), conn->name())); 
 }
 
-void LogonServer::onHubClientLogonAnswerForwardID(const muduo::net::TcpConnectionPtr& conn,
+void LogonServer::onHubLogonAnswerForwardID(const muduo::net::TcpConnectionPtr& conn,
                                                   const HubLogonAnswerForwardIDPtr& message,
                                                   muduo::Timestamp)
 {
-  LOG_INFO << "onAnswer:\n" << message->GetTypeName() << message->DebugString();
+  LOG_INFO << "onHubClientLogonAnswerForwardID:\n" << message->GetTypeName() << message->DebugString();
 
   //TODO send to client forward IP&port
   LogonRet ret;
   ret.set_uid(message->uid());
-  if (message->has_forwardip())
-  {
-    ret.set_forwardip(message->forwardip());
-    ret.set_status("SUCCESS");
-  }
-  if (message->has_forwardport())
-    ret.set_forwardport(message->forwardport());
+  ret.set_status("SUCCESS");
+  ret.set_forwardip(message->forwardip());
+  ret.set_forwardport(message->forwardport());
+  ret.set_session(message->session());
 
   sendToClient(message->connname().c_str(), ret);
+  LOG_INFO << "onHubClientLogonAnswerForwardID uid:" << message->uid() << " forwardip:" << message->forwardip() << " forwardport:" << message->forwardport();
 }
 
 int main(int argc, char* argv[])
@@ -159,6 +188,7 @@ int main(int argc, char* argv[])
   const char* ip = logonConfig.get<const char*>("ip");
   uint16_t port = logonConfig.get<uint16_t>("port");
   uint16_t threadCount = logonConfig.get<uint16_t>("threads");
+  uint16_t id = logonConfig.get<uint16_t>("id");
   InetAddress listenAddr(ip, port);
 
   lua_tinker::table hubConfig = luaMgr.call<lua_tinker::table>("getHubServerIpPort");
@@ -168,7 +198,7 @@ int main(int argc, char* argv[])
 
   EventLoop loop;
   muduo::net::setMainEventLoop(&loop);
-  LogonServer server(&loop, listenAddr, hubAddr, &luaMgr, threadCount);
+  LogonServer server(&loop, listenAddr, hubAddr, &luaMgr, threadCount, id);
 
   server.start();
   loop.loop();

@@ -6,8 +6,10 @@
 #include <muduo/base/Lua.h>
 #include <muduo/base/LoggerOutput.h>
 #include <muduo/net/Sigaction.h>
+#include <stdio.h>
 using namespace muduo;
 using namespace muduo::net;
+using namespace keeperForward;
 
 KeeperClient::KeeperClient(EventLoop* loop,
                            const InetAddress& serverAddr,
@@ -19,13 +21,17 @@ KeeperClient::KeeperClient(EventLoop* loop,
     lua_(l)
 {
   assert(lua_);
-  dispatcher_.registerMessageCallback<muduo::KeeperAnswer>(
+  dispatcher_.registerMessageCallback<KeeperAnswer>(
       boost::bind(&KeeperClient::onAnswer, this, _1, _2, _3));
+  dispatcher_.registerMessageCallback<KeeperForwardLogonSession>(
+      boost::bind(&KeeperClient::onKeeperForwardLogonSession, this, _1, _2, _3));
   client_.setConnectionCallback(
       boost::bind(&KeeperClient::onConnection, this, _1));
   client_.setMessageCallback(
       boost::bind(&ProtobufCodec::onMessage, &codec_, _1, _2, _3));
   client_.enableRetry();
+
+  srand(time(NULL));
 }
 
 void KeeperClient::connect()
@@ -41,21 +47,27 @@ void KeeperClient::onConnection(const TcpConnectionPtr& conn)
 
   if (conn->connected())
   {
-    muduo::KeeperQuery query;
+    MutexLockGuard lock(mutex_);
+    conn_ = conn;
+
+    KeeperQuery query;
     query.set_servertype(SERVER_TYPE_FORWARD);
     codec_.send(conn, query);
   }
   else
   {
-    //loop_->quit();
+    MutexLockGuard lock(mutex_);
+    conn_.reset();
   }
 }
 
-void KeeperClient::onUnknownMessage(const TcpConnectionPtr&,
+void KeeperClient::onUnknownMessage(const TcpConnectionPtr& conn,
                                     const MessagePtr& message,
                                     Timestamp)
 {
-  LOG_INFO << "onUnknownMessage: " << message->GetTypeName();
+  LOG_ERROR << "onUnknownMessage: " << message->GetTypeName();
+
+  conn->shutdown();
 }
 
 void KeeperClient::onAnswer(const muduo::net::TcpConnectionPtr&,
@@ -65,8 +77,28 @@ void KeeperClient::onAnswer(const muduo::net::TcpConnectionPtr&,
   LOG_INFO << "onAnswer:\n" << message->GetTypeName() << message->DebugString();
 
   InetAddress listenAddr(message->ip(), message->port());
-  ForwardServer server(loop_, listenAddr, lua_, message->threads());
-  server.start();
+  forwardServer_.reset(new ForwardServer(loop_, listenAddr, lua_, message->threads(), message->keeperserverid(), message->serverid(), this));
+  forwardServer_->start();
+}
+
+void KeeperClient::onKeeperForwardLogonSession(const muduo::net::TcpConnectionPtr&,
+                                               const KeeperForwardLogonSessionPtr& message,
+                                               muduo::Timestamp)
+{
+  LOG_INFO << "onKeeperForwardLogonSession:\n" << message->GetTypeName() << message->DebugString();
+
+  assert(forwardServer_);
+
+  int32_t session = rand();
+  forwardServer_->addLogonSession(message->uid(), session);
+
+  KeeperForwardLogonSessionRet send;
+  send.set_uid(message->uid());
+  send.set_connname(message->connname());
+  send.set_forwardip(forwardServer_->listenAddress().toIp().data());
+  send.set_forwardport(forwardServer_->listenAddress().toPort());
+  send.set_session(session);
+  sendToKeeper(send);
 }
 
 int main(int argc, char* argv[])

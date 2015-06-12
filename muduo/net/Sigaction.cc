@@ -2,7 +2,7 @@
 #include <muduo/net/EventLoop.h>
 #include <signal.h>
 #include <muduo/base/Logging.h>
-
+#include <boost/bind.hpp>
 namespace muduo
 {
 
@@ -23,6 +23,7 @@ void stopServerHandler(int signum)
 {
   assert(muduo::net::mainEventLoop != NULL);
   LOG_INFO << "stopServerHandler";
+  //muduo::net::mainEventLoop->queueInLoop(boost::bind(&muduo::net::EventLoop::quit, muduo::net::mainEventLoop));
   muduo::net::mainEventLoop->quit();
   LOG_INFO << "stopServerHandler";
 }

@@ -1,6 +1,18 @@
-package muduo;
+package keeperForward;
 
-message HubKeeperUpdateForwardConns {
+message KeeperQuery {
+  required uint32 servertype = 1;
+}
+
+message KeeperAnswer {
+  required uint32 keeperserverid = 1;
+  required uint32 serverid = 2;
+  required string ip = 3;
+  required uint32 port = 4;
+  required uint32 threads = 5;
+}
+
+message KeeperForwardUpdateForwardConns {
   required uint32 keeperserverid = 1;
   required uint32 forwardserverid = 2;
   required string forwardip = 3;
@@ -16,16 +28,15 @@ message HubKeeperUpdateForwardConns {
   required Operation oper = 5 [default = ADD];
 }
 
-message HubKeeperLogonSession {
+message KeeperForwardLogonSession {
   required int64 uid = 1;
   required string connname = 2;
-  required int32 forwardserverid = 3;
 }
 
-message HubKeeperLogonSessionRet {
+message KeeperForwardLogonSessionRet {
   required int64 uid = 1;
   required string connname = 2;
   required string forwardip = 3;
   required int32 forwardport = 4;
-  required int32 session = 5; 
+  required int32 session = 5;
 }

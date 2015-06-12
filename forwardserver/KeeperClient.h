@@ -1,19 +1,22 @@
 #ifndef KEEPER_CLIENT_H
 #define KEEPER_CLIENT_H
 
-#include <proto/keeperQuery.pb.h>
+#include <proto/keeperForward.pb.h>
 
 #include <muduo/net/EventLoop.h>
 #include <muduo/net/TcpClient.h>
 #include <muduo/net/protobuf/ProtobufCodec.h>
 #include <muduo/net/protobuf/ProtobufDispatcher.h>
-
-typedef boost::shared_ptr<muduo::KeeperAnswer> KeeperAnswerPtr;
+#include <muduo/net/TcpConnection.h>
+typedef boost::shared_ptr<keeperForward::KeeperAnswer> KeeperAnswerPtr;
+typedef boost::shared_ptr<keeperForward::KeeperForwardLogonSession> KeeperForwardLogonSessionPtr;
 
 namespace muduo
 {
 class Lua;
 }
+
+class ForwardServer;
 
 class KeeperClient : boost::noncopyable
 {
@@ -35,11 +38,34 @@ class KeeperClient : boost::noncopyable
                 const KeeperAnswerPtr& message,
                 muduo::Timestamp);
 
+  void onKeeperForwardLogonSession(const muduo::net::TcpConnectionPtr&,
+                                   const KeeperForwardLogonSessionPtr& message,
+                                   muduo::Timestamp);
+
   muduo::net::EventLoop* loop_;
   muduo::net::TcpClient client_;
   muduo::net::ProtobufDispatcher dispatcher_;
   muduo::net::ProtobufCodec codec_;
   muduo::Lua* lua_;
+  muduo::net::TcpConnectionPtr conn_;
+  muduo::MutexLock mutex_;
+
+  boost::scoped_ptr<ForwardServer> forwardServer_;
+ public: 
+  template<typename MSG>
+void sendToKeeper(const MSG& msg)
+{
+  muduo::net::TcpConnectionPtr conn;
+  {
+    muduo::MutexLockGuard lock(mutex_);
+    conn = conn_;
+  }
+  if (conn)
+  {
+    codec_.send(conn, msg);
+  }
+}
+
 };
 
 

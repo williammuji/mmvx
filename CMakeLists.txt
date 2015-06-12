@@ -40,6 +40,10 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O2 -finline-limit=1000 -DNDEBUG")
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 set(LIBRARY_OUTPUT_PATH ${PROJECT_BINARY_DIR}/lib)
 
+set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake;${CMAKE_MODULE_PATH}")
+
+find_package(MySQL REQUIRED)
+find_package(MySQLPP REQUIRED)
 find_package(Boost REQUIRED)
 find_package(Protobuf)
 find_package(CURL)
@@ -103,6 +107,7 @@ add_subdirectory(hubserver)
 add_subdirectory(logonserver)
 add_subdirectory(keeperserver)
 add_subdirectory(forwardserver)
+add_subdirectory(logonclient)
 
 if(NOT CMAKE_BUILD_NO_EXAMPLES)
   add_subdirectory(examples)
