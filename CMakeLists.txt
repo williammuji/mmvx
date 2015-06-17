@@ -44,7 +44,10 @@ set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake;${CMAKE_MODULE_PATH}")
 
 find_package(MySQL REQUIRED)
 find_package(MySQLPP REQUIRED)
+<<<<<<< HEAD
 find_package(OpenSSL REQUIRED)
+=======
+>>>>>>> b318cba5298df589a32ab01efdb3f54d2d4e86fc
 find_package(Boost REQUIRED)
 find_package(Protobuf)
 find_package(CURL)
