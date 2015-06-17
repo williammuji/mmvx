@@ -16,6 +16,8 @@ LogonClient::LogonClient(muduo::net::EventLoop* loop,
     codec_(boost::bind(&ProtobufDispatcher::onProtobufMessage, &dispatcher_, _1, _2, _3)),
     pool_(pool)
 {
+  codec_.setAes();
+
   dispatcher_.registerMessageCallback<muduo::LogonRet>(
       boost::bind(&LogonClient::onLogonRet, this, _1, _2, _3));
   client_.setConnectionCallback(

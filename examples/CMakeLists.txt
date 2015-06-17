@@ -1,3 +1,4 @@
+add_subdirectory(aes)
 add_subdirectory(ace/ttcp)
 add_subdirectory(asio/chat)
 add_subdirectory(asio/tutorial)

@@ -48,11 +48,13 @@ class Buffer : public muduo::copyable
   explicit Buffer(size_t initialSize = kInitialSize)
     : buffer_(kCheapPrepend + initialSize),
       readerIndex_(kCheapPrepend),
-      writerIndex_(kCheapPrepend)
+      writerIndex_(kCheapPrepend),
+      decryptIndex_(kCheapPrepend)
   {
     assert(readableBytes() == 0);
     assert(writableBytes() == initialSize);
     assert(prependableBytes() == kCheapPrepend);
+    assert(decryptedBytes() == 0);
   }
 
   // implicit copy-ctor, move-ctor, dtor and assignment are fine
@@ -63,6 +65,7 @@ class Buffer : public muduo::copyable
     buffer_.swap(rhs.buffer_);
     std::swap(readerIndex_, rhs.readerIndex_);
     std::swap(writerIndex_, rhs.writerIndex_);
+    std::swap(decryptIndex_, rhs.decryptIndex_);
   }
 
   size_t readableBytes() const
@@ -70,6 +73,12 @@ class Buffer : public muduo::copyable
 
   size_t writableBytes() const
   { return buffer_.size() - writerIndex_; }
+
+  size_t decryptedBytes() const
+  { return decryptIndex_ - readerIndex_; }
+
+  size_t unDecryptedBytes() const
+  { return writerIndex_ - decryptIndex_; }
 
   size_t prependableBytes() const
   { return readerIndex_; }
@@ -154,6 +163,7 @@ class Buffer : public muduo::copyable
   {
     readerIndex_ = kCheapPrepend;
     writerIndex_ = kCheapPrepend;
+    decryptIndex_ = kCheapPrepend;
   }
 
   string retrieveAllAsString()
@@ -217,6 +227,24 @@ class Buffer : public muduo::copyable
     assert(len <= readableBytes());
     writerIndex_ -= len;
   }
+
+  char* beginDecrypt() 
+  { return begin() + decryptIndex_; }
+
+  const char* beginDecrypt() const
+  { return begin() + decryptIndex_; }
+
+  void hasDecrypt(size_t len)
+  {
+    assert(len <= unDecryptedBytes());
+    decryptIndex_ += len;
+  }
+
+  char* beginEncrypt() 
+  { return begin() + readerIndex_; }
+
+  const char* beginEncrypt() const
+  { return begin() + readerIndex_; }
 
   ///
   /// Append int64_t using network endian
@@ -399,11 +427,13 @@ class Buffer : public muduo::copyable
       // move readable data to the front, make space inside buffer
       assert(kCheapPrepend < readerIndex_);
       size_t readable = readableBytes();
+      size_t decrypted = decryptedBytes();
       std::copy(begin()+readerIndex_,
                 begin()+writerIndex_,
                 begin()+kCheapPrepend);
       readerIndex_ = kCheapPrepend;
       writerIndex_ = readerIndex_ + readable;
+      decryptIndex_ = readerIndex_ + decrypted;
       assert(readable == readableBytes());
     }
   }
@@ -412,6 +442,7 @@ class Buffer : public muduo::copyable
   std::vector<char> buffer_;
   size_t readerIndex_;
   size_t writerIndex_;
+  size_t decryptIndex_;
 
   static const char kCRLF[];
 };

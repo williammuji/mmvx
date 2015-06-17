@@ -15,8 +15,11 @@
 #include <boost/function.hpp>
 #include <boost/noncopyable.hpp>
 #include <boost/shared_ptr.hpp>
+#include <boost/scoped_ptr.hpp>
 
 #include <google/protobuf/message.h>
+
+#include <muduo/base/Aes.h>
 
 namespace muduo
 {
@@ -82,6 +85,7 @@ class ProtobufCodec : boost::noncopyable
     // FIXME: serialize to TcpConnection::outputBuffer()
     muduo::net::Buffer buf;
     fillEmptyBuffer(&buf, message);
+    if (aes_) encryptBuffer(&buf);
     conn->send(&buf);
   }
 
@@ -89,6 +93,13 @@ class ProtobufCodec : boost::noncopyable
   static void fillEmptyBuffer(muduo::net::Buffer* buf, const google::protobuf::Message& message);
   static google::protobuf::Message* createMessage(const std::string& type_name);
   static MessagePtr parse(const char* buf, int len, ErrorCode* errorCode);
+
+  void encryptBuffer(Buffer* buf);
+  void decryptBuffer(Buffer* buf);
+  void setAes()
+  {
+    aes_.reset(new Aes());
+  }
 
  private:
   static void defaultErrorCallback(const muduo::net::TcpConnectionPtr&,
@@ -98,10 +109,12 @@ class ProtobufCodec : boost::noncopyable
 
   ProtobufMessageCallback messageCallback_;
   ErrorCallback errorCallback_;
+  boost::scoped_ptr<muduo::Aes> aes_;
 
   const static int kHeaderLen = sizeof(int32_t);
   const static int kMinMessageLen = 2*kHeaderLen + 2; // nameLen + typeName + checkSum
   const static int kMaxMessageLen = 64*1024*1024; // same as codec_stream.h kDefaultTotalBytesLimit
+  const static char kPadding[AES_BLOCK_SIZE];
 };
 
 }

@@ -18,6 +18,10 @@
 using namespace muduo;
 using namespace muduo::net;
 
+const char ProtobufCodec::kPadding[] = 
+{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+
 void ProtobufCodec::fillEmptyBuffer(Buffer* buf, const google::protobuf::Message& message)
 {
   // buf->retrieveAll();
@@ -117,6 +121,8 @@ void ProtobufCodec::onMessage(const TcpConnectionPtr& conn,
 {
   while (buf->readableBytes() >= kMinMessageLen + kHeaderLen)
   {
+    if (aes_) decryptBuffer(buf);
+
     const int32_t len = buf->peekInt32();
     if (len > kMaxMessageLen || len < kMinMessageLen)
     {
@@ -211,4 +217,33 @@ MessagePtr ProtobufCodec::parse(const char* buf, int len, ErrorCode* error)
   }
 
   return message;
+}
+
+void ProtobufCodec::encryptBuffer(Buffer* buf)
+{
+  assert(aes_ != NULL || buf != NULL);
+  assert(buf->readableBytes() != 0);
+
+  LOG_INFO << "ProtobufCodec::encryptBuffer readableBytes:" << buf->readableBytes();
+  size_t paddingLen = buf->readableBytes()%AES_BLOCK_SIZE;
+  buf->append(kPadding, paddingLen);
+  for (size_t i=0; i<buf->readableBytes()/AES_BLOCK_SIZE; ++i)
+    aes_->encrypt(reinterpret_cast<const unsigned char*>(buf->beginEncrypt() + i*AES_BLOCK_SIZE), 
+                  reinterpret_cast<unsigned char*>(buf->beginEncrypt() + i*AES_BLOCK_SIZE), 
+                  AES_BLOCK_SIZE);
+  LOG_INFO << "ProtobufCodec::encryptBuffer readableBytes:" << buf->readableBytes() << " paddingLen:" << paddingLen;
+}
+
+void ProtobufCodec::decryptBuffer(Buffer* buf)
+{
+  assert(aes_ != NULL || buf != NULL);
+
+  while (buf->unDecryptedBytes() >= AES_BLOCK_SIZE)
+  {
+    LOG_INFO << "ProtobufCodec::decryptBuffer readableBytes:" << buf->readableBytes() << " unDecryptedBytes:" << buf->unDecryptedBytes();
+    aes_->decrypt(reinterpret_cast<const unsigned char*>(buf->beginDecrypt()), 
+                  reinterpret_cast<unsigned char*>(buf->beginDecrypt()), 
+                  AES_BLOCK_SIZE);
+    buf->hasDecrypt(AES_BLOCK_SIZE);
+  }
 }

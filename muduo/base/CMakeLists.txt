@@ -1,4 +1,5 @@
 set(base_SRCS
+  Aes.cc
   AsyncLogging.cc
   Condition.cc
   CountDownLatch.cc
@@ -18,10 +19,10 @@ set(base_SRCS
   )
 
 add_library(muduo_base ${base_SRCS})
-target_link_libraries(muduo_base pthread rt lua)
+target_link_libraries(muduo_base pthread rt lua ssl crypto)
 
 add_library(muduo_base_cpp11 ${base_SRCS})
-target_link_libraries(muduo_base_cpp11 pthread rt lua)
+target_link_libraries(muduo_base_cpp11 pthread rt lua ssl)
 set_target_properties(muduo_base_cpp11 PROPERTIES COMPILE_FLAGS "-std=c++0x")
 
 install(TARGETS muduo_base DESTINATION lib)

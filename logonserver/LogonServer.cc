@@ -29,6 +29,8 @@ LogonServer::LogonServer(EventLoop* loop,
 {
   assert(lua_);
 
+  codec_.setAes();
+
   dispatcher_.registerMessageCallback<muduo::Logon>(
       boost::bind(&LogonServer::onLogon, this, _1, _2, _3));
   server_.setConnectionCallback(

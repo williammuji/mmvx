@@ -29,6 +29,8 @@ ForwardServer::ForwardServer(EventLoop* loop,
     serverID_(serverID),
     client_(CHECK_NOTNULL(client))
 {
+  codec_.setAes();
+
   dispatcher_.registerMessageCallback<muduo::LogonForward>(
       boost::bind(&ForwardServer::onLogonForward, this, _1, _2, _3));
   server_.setConnectionCallback(
