@@ -17,11 +17,8 @@ ForwardClient::ForwardClient(muduo::net::EventLoop* loop,
     uid_(uid),
     session_(session)
 {
-<<<<<<< HEAD
   codec_.setAes();
 
-=======
->>>>>>> b318cba5298df589a32ab01efdb3f54d2d4e86fc
   client_.setConnectionCallback(
       boost::bind(&ForwardClient::onConnection, this, _1));
   client_.setMessageCallback(

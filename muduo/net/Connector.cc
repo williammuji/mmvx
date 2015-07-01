@@ -96,6 +96,7 @@ void Connector::connect()
     case EADDRNOTAVAIL:
     case ECONNREFUSED:
     case ENETUNREACH:
+      LOG_INFO << "retry for errno: " << savedErrno;
       retry(sockfd);
       break;
 
@@ -203,7 +204,7 @@ void Connector::handleError()
   {
     int sockfd = removeAndResetChannel();
     int err = sockets::getSocketError(sockfd);
-    LOG_TRACE << "SO_ERROR = " << err << " " << strerror_tl(err);
+    LOG_ERROR << "SO_ERROR = " << err << " " << strerror_tl(err);
     retry(sockfd);
   }
 }

@@ -1,0 +1,45 @@
+package licenseplate;
+
+message Logon {
+  required int32 id = 1;
+  required int32 passwd = 2;
+  required int32 code = 3;
+}
+
+message LogonRet {
+  required int32 id = 1;
+  
+  enum Status
+  {
+    SUCCESS = 0;
+    FAILED = 1;
+  }
+  required Status status = 2;
+  required int64 starttime = 3;
+  required int64 lasttime = 4;
+  required int64 curtime = 5;
+}
+
+message Bid {
+  required int32 id = 1;
+  required int32 price = 2;
+  required int32 code = 3;
+}
+
+message BidStatus {
+  required int32 maxlicenses = 1;
+  required int32 alertprice = 2;
+  required int64 starttime = 3;
+  required int64 lasttime = 4;
+  required int64 curtime = 5;
+  required int32 bidders = 6;
+  required int32 minsuccessprice = 7;
+  required int64 lastsuccesstime = 8;
+  required int64 samesuccesstimenum = 9;
+
+  message YetBidData {
+    required int64 bidtime = 1;
+    required int32 price = 2;
+  }
+  repeated YetBidData yetbiddata = 10;
+}
